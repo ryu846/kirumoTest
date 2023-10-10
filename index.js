@@ -31,17 +31,21 @@ app.get("/", function(req, res){
     return res.send("<a href='#'>Hello World!!</a>");
 });
 
+
 app.get("/mysql", function(req, res){
-    //MYSQLテスト用
-    connection.query(
-        'SELECT * FROM users',
-        (error, results) => {
-          console.log(results);
-          res.render("mysql.ejs", {userTable:results});
-        //   res.render('hello.ejs');
-        }
-      );
-    
+  //GET?~~~
+  //GETで取得したカードIDが、データベース上に存在するかを返す
+  //存在する場合  　→1を返す ＋ ユーザの詳細情報を返す
+  //存在しないばあい→0を返す
+  connection.query(
+      'SELECT * FROM users',
+      (error, results) => {
+        console.log(results);
+        return res.send("<a href='#'>Hello World!!</a>"+results);
+      //   res.render('hello.ejs');
+      }
+    );
+  
 });
 
 app.post("/trying", function(req, res){
