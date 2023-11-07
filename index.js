@@ -1,56 +1,84 @@
-//モジュールのインポート
 const http = require('http');
+require('dotenv').config();
+
+//EXPRESS
 const express = require('express');
-
-const mysql = require('mysql');
-const bodyParser = require('body-parser');
-
-//expressオブジェクトの生成
 const app = express();
 
+//BODYPARSER
+const bodyParser = require('body-parser');
 app.use(bodyParser.urlencoded({extended:false}));
 
-//mysql接続情報
-const connection = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'Kirumo'
-  });
-
-  //mysql 接続失敗時エラー
-  connection.connect((err) => {
-    if (err) {
-      console.log('error connecting: ' + err.stack);
-      return;
-    }
-    console.log('success');
-  });
-
-//getでリクエスト時に処理するコールバック関数指定
-app.get("/", function(req, res){
-    //トップページ → ICカードの読み込み → データに応じて遷移先を変更
-    //登録済み→POST./trying 未登録→POST./signup
-    return res.send("<a href='#'>Hello World!!</a>");
+//POSTGRESQL
+const { Pool } = require("pg");
+const pool = new Pool({
+  user: process.env.DB_USER,
+  host: process.env.DB_HOST,
+  database: process.env.DB_DATABASE,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
+app.get("/", function(req, res){
+  res.render('card_reader.ejs');
+});
 
+//【POSTGRESQL接続サンプル】
+app.get("/pg", (req, res) => {
+  pool.query('SELECT * FROM sampletable', (error, results) => {
+    if (error) {
+      //エラーのときのメッセージ
+      console.error('Error executing query', error);
+      res.status(500).json({ error: 'An error occurred', details: error.message });
+    } else {
+      // クエリ結果をJSON形式でクライアントに返す
+      res.json(results.rows);
+    }
+  });
+});
+
+//----FORD-------------------------------------------------------------
 app.get("/mysql", function(req, res){
   //GET?~~~
   //GETで取得したカードIDが、データベース上に存在するかを返す
   //存在する場合  　→1を返す ＋ ユーザの詳細情報を返す
   //存在しないばあい→0を返す
+  const idmStr = req.query["idmStr"];
+  var sql = "SELECT * FROM card WHERE card_id = ? LIMIT 1"
+  // SELECT id, CASE WHEN id = 1 THEN 1 ELSE 0 END FROM users WHERE id = ? LIMIT 1
   connection.query(
-      'SELECT * FROM users',
+      // 'SELECT * FROM users',
+      sql, [idmStr],
       (error, results) => {
+        if (error) throw error;
         console.log(results);
-        return res.send("<a href='#'>Hello World!!</a>"+results);
+        // return res.send("<a href='#'>Hello World!!</a>"+results);
+        if(results == "") {
+          var sql_new = "INSERT INTO card (card_id) VALUES (?)"
+          connection.query(
+            sql_new, [idmStr],
+            (error, results) => {
+              if (error) throw error;
+              console.log(results);
+            }
+          )
+            res.render('0.ejs',{usersCard: idmStr, results: results});
+          }
+          else if (results){
+              res.render('1.ejs',{usersCard: idmStr, results: results})
+          }
       //   res.render('hello.ejs');
       }
     );
   
 });
 
+
+
+//----NARUMI-------------------------------------------------------------
 // 顧客情報登録
 app.post("/signup", function(req, res){
 
@@ -60,6 +88,7 @@ app.post("/signup", function(req, res){
   const c_size = req.body.c_size;
   const s_size = req.body.s_size;
   
+  //！！記述ルール変更
   connection.query(
     // データベースに登録
     'INSERT INTO user_info (gender,color,clothes_size,shoes_size) VALUE ("'+ gender +'","'+ color +'","'+ c_size +'","'+ s_size +'");',
@@ -83,6 +112,7 @@ app.post("/task", function(req, res){
   console.log(room_id)
   console.log(task)
   
+  //！！記述ルール変更
   connection.query(
     // データベースに登録
     'INSERT INTO store_tasks (store_id,room_id,task_description) VALUE ("'+ store_id +'","'+ room_id +'",\''+ task +'\');',
@@ -95,15 +125,14 @@ app.post("/task", function(req, res){
 });
 
 app.get("/form", function(req, res){
-    
       res.render('form.ejs');
 });
 
 app.get("/task", function(req, res){
-    
   res.render('task.ejs');
 });
 
 //サーバの設定
 const server = http.createServer(app);
 server.listen(3000);
+console.log("http://localhost:3000");
