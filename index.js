@@ -155,7 +155,6 @@ app.get("/list", (req, res) => {
   const id = req.query["id"];
 
   if (id) {
-    // もしIDが提供されている場合、そのIDに対応するデータを取得します
     const SQL = "SELECT * FROM clothes_data WHERE id = $1";
     const values = [id];
 
@@ -165,16 +164,19 @@ app.get("/list", (req, res) => {
         res.status(500).json({ error: 'エラーが発生しました', details: error.message });
       } else {
         if (results.rows.length === 0) {
-          // 提供されたIDに対応するデータが見つからない場合
           res.status(404).json({ error: '見つかりません', details: '指定されたIDに対応するデータが見つかりませんでした' });
         } else {
-          // 指定されたIDのデータをJSON形式で返します
-          res.json(results.rows[0]);
+          const clothingData = results.rows[0];
+          res.json({
+            id: clothingData.id,
+            name: clothingData.name,
+            description: clothingData.description,
+            image_url: clothingData.image_url, // 'image_url'という列があると仮定
+          });
         }
       }
     });
   } else {
-    // もしIDが提供されていない場合、すべてのデータを取得します
     const SQL = "SELECT * FROM clothes_data";
 
     pool.query(SQL, (error, results) => {
@@ -182,8 +184,13 @@ app.get("/list", (req, res) => {
         console.error('クエリの実行エラー', error);
         res.status(500).json({ error: 'エラーが発生しました', details: error.message });
       } else {
-        // すべてのデータをJSON形式で返します
-        res.json(results.rows);
+        const clothingDataList = results.rows.map((clothingData) => ({
+          id: clothingData.id,
+          name: clothingData.name,
+          description: clothingData.description,
+          image_url: clothingData.localhost3000 // 'image_url'という列があると仮定
+        }));
+        res.json(clothingDataList);
       }
     });
   }
